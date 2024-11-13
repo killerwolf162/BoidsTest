@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class Boid : MonoBehaviour
 {
@@ -34,7 +35,7 @@ public class Boid : MonoBehaviour
         foreach (GameObject boid in boids)
         {
             //Debug.Log(boid.name);
-            Rigidbody rb = boid.GetComponent<Rigidbody>();
+            Rigidbody rb = boid.GetComponent<Rigidbody>(); // use list to get corresponding rigidbody instead of "getting" it every frame
 
             v1 = FindCenterOfMass(boid);
             v2 = KeepSmallDistance(boid);
