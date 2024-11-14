@@ -5,23 +5,20 @@ using System.Linq;
 
 public class Boid : MonoBehaviour
 {
-    
-    private List<GameObject> boids = new List<GameObject>();
+
     private List<Rigidbody> rbs = new List<Rigidbody>();
+
+    private float xOutside = 0, yOutside = 0, zOutside = 0;
 
     private void Start()
     {
-        boids.AddRange(GameObject.FindGameObjectsWithTag("BoidLing"));
-        foreach (GameObject boid in boids)
+        List<GameObject> gameObjects = new List<GameObject>();
+        gameObjects.AddRange(GameObject.FindGameObjectsWithTag("BoidLing"));
+        foreach (GameObject gameObject in gameObjects)
         {
-            Rigidbody rb = GetComponent<Rigidbody>();
-            rbs.Add(rb);
+            rbs.Add(gameObject.GetComponent<Rigidbody>());
         }
-
-        
-
     }
-
     private void FixedUpdate()
     {
         MoveBoid();
@@ -29,134 +26,141 @@ public class Boid : MonoBehaviour
 
     public void MoveBoid()
     {
-        Vector3 v1, v2, v3, v4 = new Vector3();
-        int counter = 0;
+        Vector3 v1, v2, v3, v4, v5 = new Vector3();
+        int randomNumber = Random.Range(0, 10);
 
-        foreach (GameObject boid in boids)
+        if(randomNumber > 5)
         {
-            //Debug.Log(boid.name);
-            Rigidbody rb = boid.GetComponent<Rigidbody>(); // use list to get corresponding rigidbody instead of "getting" it every frame
+            xOutside = Random.Range(-0.25f, 0.25f);
+            yOutside = Random.Range(-0.25f, 0.25f);
+            zOutside = Random.Range(-0.25f, 0.25f);
+        }
+       
+        foreach (Rigidbody rb in rbs)
+        {
+            v1 = FindCenterOfMass(rb);
+            v2 = KeepSmallDistance(rb);
+            v3 = MatchVelocity(rb);
+            v4 = BoundingThePosition(rb);
+            v5 = OutsideForce(xOutside, yOutside, zOutside);
 
-            v1 = FindCenterOfMass(boid);
-            v2 = KeepSmallDistance(boid);
-            v3 = MatchVelocity(boid, rb);
-            v4 = BoundingThePosition(boid);
-
-            rb.velocity = rb.velocity + v1 + v2 + v3 + v4;
-
-            boid.transform.position = boid.transform.position + rb.velocity;
-            counter++;
-
+            rb.velocity = rb.velocity + v1 + v2 + v3 + v4 + v5;
+            rb.velocity = LimitSpeed(rb.velocity);
+            rb.transform.position = rb.transform.position + rb.velocity;
         }
     }
 
-    public Vector3 FindCenterOfMass(GameObject b) // boids rule 1
+    public Vector3 FindCenterOfMass(Rigidbody rigidBody) // rule 1
     {
         Vector3 percievedCenter = new Vector3();
+        int scalar = 75;
 
-        foreach (GameObject boid in boids)
+        foreach (Rigidbody rb in rbs)
         {
-            if(boid != b)
+            if (rb != rigidBody)
             {
-                percievedCenter = percievedCenter + boid.transform.position;
-                
+                percievedCenter = percievedCenter + rb.transform.position;
             }
         }
-        percievedCenter = percievedCenter / (boids.Count - 1);
+        percievedCenter = percievedCenter / (rbs.Count - 1);
 
-        return (percievedCenter - b.transform.position) / 100;
+        return (percievedCenter - rigidBody.transform.position) / scalar;
     }
 
-    public Vector3 KeepSmallDistance(GameObject b) // boids rule 2
+    public Vector3 KeepSmallDistance(Rigidbody rigidBody) // rule 2 doesnt work well
     {
-        Vector3 distanceCorrection = new Vector3(0,0,0);
-        float xCorrection = 0;
-        float yCorrection = 0;
-        float zCorrection = 0;
+        Vector3 distanceCorrection = new Vector3(0, 0, 0);
 
-        foreach(GameObject boid in boids)
+        foreach (Rigidbody rb in rbs)
         {
-            if(boid != b)
+            if (rb != rigidBody)
             {
-                if(Mathf.Abs(boid.transform.position.x - b.transform.position.x) < 0.1)
+                if (Mathf.Abs(rb.transform.position.x - rigidBody.transform.position.x) < 0.1)
                 {
-                    xCorrection = xCorrection - (boid.transform.position.x - b.transform.position.x);
+                    distanceCorrection.x = 2 * distanceCorrection.x - (rb.transform.position.x - rigidBody.transform.position.x);
                 }
-                if (Mathf.Abs(boid.transform.position.y - b.transform.position.y) < 0.1)
+                if (Mathf.Abs(rb.transform.position.y - rigidBody.transform.position.y) < 0.1)
                 {
-                    yCorrection = yCorrection - (boid.transform.position.y - b.transform.position.y);
+                    distanceCorrection.y = 2 * distanceCorrection.y - (rb.transform.position.y - rigidBody.transform.position.y);
                 }
-                if (Mathf.Abs(boid.transform.position.z - b.transform.position.z) < 0.1)
+                if (Mathf.Abs(rb.transform.position.z - rigidBody.transform.position.z) < 0.1)
                 {
-                    zCorrection = zCorrection - (boid.transform.position.z - b.transform.position.z);
+                    distanceCorrection.z = 2 * distanceCorrection.z - (rb.transform.position.z - rigidBody.transform.position.z);
                 }
-                distanceCorrection = new Vector3(xCorrection, yCorrection, zCorrection);
             }
         }
-
         return distanceCorrection;
     }
 
-    public Vector3 MatchVelocity(GameObject b, Rigidbody rb) // boids rule 3
+    public Vector3 MatchVelocity(Rigidbody rigidbody) // rule 3
     {
         Vector3 percievedVelocity = new Vector3();
         Vector3 personalVelocity = new Vector3();
+        int scalar = 5;
 
-        foreach (GameObject boid in boids)
+        foreach (Rigidbody rb in rbs)
         {
             rb.velocity = personalVelocity;
 
 
-            if (boid != b)
+            if (rb != rigidbody)
             {
                 percievedVelocity = percievedVelocity + personalVelocity;
             }
         }
 
-        percievedVelocity = percievedVelocity / (boids.Count - 1);
-
-        return (percievedVelocity - personalVelocity) / 8;
+        percievedVelocity = percievedVelocity / (rbs.Count - 1);
+        return (percievedVelocity - personalVelocity) / scalar;
     }
 
-    public Vector3 BoundingThePosition(GameObject b) // rule 4
+    public Vector3 BoundingThePosition(Rigidbody rb) // rule 4
     {
-        int xMin = -5, xMax = 5, yMin = -5, yMax = 5, zMin = -5, zMax = 5;
+        int xMin = -5, xMax = 5, yMin = -5, yMax = 5, zMin = -1, zMax = 4;
+        float movementCorrection = 0.25f;
         Vector3 v = new Vector3();
 
-        if (b.transform.position.x < xMin)
-            v.x = 0.5f;
-        else if (b.transform.position.x > xMax)
-            v.x = -0.5f;
+        if (rb.transform.position.x < xMin)
+            v.x = movementCorrection;
+        else if (rb.transform.position.x > xMax)
+            v.x = -movementCorrection;
 
-        if (b.transform.position.y < yMin)
-            v.y = 0.5f;
-        else if (b.transform.position.y > yMax)
-            v.y = -0.5f;
+        if (rb.transform.position.y < yMin)
+            v.y = movementCorrection;
+        else if (rb.transform.position.y > yMax)
+            v.y = -movementCorrection;
 
-        if (b.transform.position.z < zMin)
-            v.z = 0.5f;
-        else if (b.transform.position.z > zMax)
-            v.z = -0.5f;
+        if (rb.transform.position.z < zMin)
+            v.z = movementCorrection;
+        else if (rb.transform.position.z > zMax)
+            v.z = -movementCorrection;
 
         return v;
     }
 
-    public Vector3 LimitVelocity(GameObject b, Rigidbody rb) // doesnt seem to work, gets stuck
+    public Vector3 OutsideForce(float xForce, float yForce, float zForce) // rule 5
     {
-        float vLimit = 0.05f;
-        Vector3 v = new Vector3();
+        Vector3 v = new Vector3(xForce, yForce, zForce);
+        return v;
+    }
 
-        if (Mathf.Abs(rb.velocity.x) > vLimit)
-            v.x = (rb.velocity.x / Mathf.Abs(rb.velocity.x)) * vLimit;
-        if (Mathf.Abs(rb.velocity.y) > vLimit)
-            v.y = (rb.velocity.y / Mathf.Abs(rb.velocity.y)) * vLimit;
-        if (Mathf.Abs(rb.velocity.z) > vLimit)
-            v.z = (rb.velocity.z / Mathf.Abs(rb.velocity.z)) * vLimit;
+    public Vector3 LimitSpeed(Vector3 v)
+    {
+        float speedLimit = 0.05f;
 
-
+        if (Mathf.Abs(v.x) > speedLimit)
+        {
+            v.x = (v.x / Mathf.Abs(v.x)) * speedLimit;
+        }
+        if (Mathf.Abs(v.y) > speedLimit)
+        {
+            v.y = (v.y / Mathf.Abs(v.y)) * speedLimit;
+        }
+        if (Mathf.Abs(v.z) > speedLimit)
+        {
+            v.z = (v.z / Mathf.Abs(v.z)) * speedLimit;
+        }
 
         return v;
-
     }
 
 
